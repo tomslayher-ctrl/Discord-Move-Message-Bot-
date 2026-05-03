@@ -37,8 +37,9 @@ Role Hierarchy: To ensure zero issues, move the Movr role to the very top of you
 Discord prevents bots from managing messages from users with a higher role. Placing Movr at the top ensures it can relocate content from anyone, including Admins and Moderators.
 
 ⚖️ Legal
-Terms of Service
 
-Privacy Policy
+* [Terms of Service](https://gist.github.com/ctrl-kings/47785d9d1c129328547bfe2856ce2130)
+
+* [Privacy Policy](https://gist.github.com/ctrl-kings/9e003071870cb32d05e95947fca2d349)
 
 Developed by Ctrl Kings
