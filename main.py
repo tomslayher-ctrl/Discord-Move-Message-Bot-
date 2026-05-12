@@ -129,7 +129,10 @@ class CustomAmountModal(discord.ui.Modal, title='Move Custom Amount'):
 
     def __init__(self, target_msg, target_channel, parent_view):
         super().__init__()
-        self.target_msg, self.target_channel, self.parent_view = target_msg, target_channel
+        # FIX: The target variables are now properly assigned so the modal doesn't fail
+        self.target_msg = target_msg
+        self.target_channel = target_channel
+        self.parent_view = parent_view
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
