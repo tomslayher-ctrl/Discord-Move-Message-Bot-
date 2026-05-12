@@ -129,7 +129,7 @@ class CustomAmountModal(discord.ui.Modal, title='Move Custom Amount'):
 
     def __init__(self, target_msg, target_channel, parent_view):
         super().__init__()
-        self.target_msg, self.target_channel, self.parent_view = target_msg, target_channel, parent_view
+        self.target_msg, self.target_channel, self.parent_view = target_msg, target_channel
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -175,11 +175,11 @@ class MessageCountView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         try:
-            # 1. Cleaner History Fetching
-            # Fetch count-1 because we are manually inserting the target_msg
-            messages_to_move = [m async for m in self.target_msg.channel.history(limit=count-1, before=self.target_msg)]
-            messages_to_move.insert(0, self.target_msg)
-            messages_to_move.reverse() # Chronological order
+            # 1. TOP-TO-BOTTOM LOGIC (Chronological)
+            messages_to_move = [self.target_msg]
+            if count > 1:
+                async for m in self.target_msg.channel.history(limit=count - 1, after=self.target_msg.created_at, oldest_first=True):
+                    messages_to_move.append(m)
 
             dest = self.target_channel
             webhook_channel = dest.parent if isinstance(dest, discord.Thread) else dest
@@ -190,18 +190,19 @@ class MessageCountView(discord.ui.View):
             total = len(messages_to_move)
 
             for i, m in enumerate(messages_to_move, 1):
-                # 2. Optimized Progress Bar (Only updates every 5 msgs or on the last msg)
+                # 2. Optimized Progress Bar
                 if i % 5 == 0 or i == total:
                     await interaction.edit_original_response(content=f"Moving Messages\n{'■' * i + '□' * (total - i)} ({i}/{total})")
                 
-                current_author_name = m.author.display_name
+                # Clean Original Author Details
+                original_author_name = m.author.display_name
                 current_author_avatar = m.author.display_avatar.url
                 
                 files = [await a.to_file() for a in m.attachments]
                 sent_msg = await webhook.send(
                     content=m.content, 
-                    username=current_author_name, 
-                    avatar_url=current_author_avatar,
+                    username=original_author_name, # Clean name mirror
+                    avatar_url=current_author_avatar, # Clean avatar mirror
                     files=files, 
                     thread=dest if isinstance(dest, discord.Thread) else discord.utils.MISSING, 
                     wait=True
@@ -209,28 +210,26 @@ class MessageCountView(discord.ui.View):
                 
                 moved_data.append({
                     "content": m.content, 
-                    "author_name": current_author_name, 
+                    "author_name": original_author_name, 
                     "author_avatar": current_author_avatar, 
                     "new_msg_id": sent_msg.id, 
                     "original_channel": m.channel
                 })
                 
-                # 3. Safe Reaction Copying
+                # Safe Reaction Copying
                 for r in m.reactions:
                     try: 
                         await sent_msg.add_reaction(r.emoji)
-                        await asyncio.sleep(0.25) # Reaction rate limit protection
+                        await asyncio.sleep(0.25) 
                     except: 
                         continue
 
-                # 0.4s sleep for sending messages remains to protect the webhook
                 await asyncio.sleep(0.4)
 
-            # 4. Bulk Delete the originals (1 API call instead of 50!)
+            # 4. Bulk Delete the originals
             try:
                 await self.target_msg.channel.delete_messages(messages_to_move)
             except discord.HTTPException:
-                # Fallback: If messages are older than 14 days, bulk delete fails, so we loop
                 for m in messages_to_move:
                     try: await m.delete()
                     except: pass
