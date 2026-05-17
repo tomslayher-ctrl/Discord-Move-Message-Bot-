@@ -8,12 +8,13 @@ from discord.ext import commands
 load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN') 
 OWNER_ID = int(os.getenv('OWNER_ID') or 1187154363622367285) 
+LOG_CHANNEL_ID = 1500701120362713269 # <--- ADDED YOUR CHANNEL ID HERE
 
 class MoveBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.guilds = True         
-        intents.members = True         
+        intents.guilds = True        
+        intents.members = True        
         intents.message_content = True 
         super().__init__(command_prefix="!", intents=intents)
 
@@ -23,6 +24,38 @@ class MoveBot(commands.Bot):
         self.tree.add_command(help_command)
         await self.tree.sync()
         print(f"Ctrl Kings: Movr Bot is online. Owner ID {OWNER_ID} recognized.")
+
+    # --- NEW: SERVER JOIN NOTIFICATION (CHANNEL LOG) ---
+    async def on_guild_join(self, guild: discord.Guild):
+        try:
+            channel = self.get_channel(LOG_CHANNEL_ID) or await self.fetch_channel(LOG_CHANNEL_ID)
+            if channel:
+                embed = discord.Embed(
+                    title="🎉 New Server Joined!",
+                    description=f"Movr was just added to **{guild.name}**!",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="Server ID", value=guild.id)
+                embed.add_field(name="Member Count", value=guild.member_count)
+                embed.add_field(name="Total Servers Now", value=len(self.guilds))
+                await channel.send(embed=embed)
+        except Exception as e:
+            print(f"Failed to send join notification: {e}")
+
+    # --- NEW: SERVER LEAVE NOTIFICATION (CHANNEL LOG) ---
+    async def on_guild_remove(self, guild: discord.Guild):
+        try:
+            channel = self.get_channel(LOG_CHANNEL_ID) or await self.fetch_channel(LOG_CHANNEL_ID)
+            if channel:
+                embed = discord.Embed(
+                    title="😢 Removed from Server",
+                    description=f"Movr was removed from **{guild.name}**.",
+                    color=discord.Color.red()
+                )
+                embed.add_field(name="Total Servers Now", value=len(self.guilds))
+                await channel.send(embed=embed)
+        except Exception as e:
+            print(f"Failed to send leave notification: {e}")
 
 bot = MoveBot()
 
